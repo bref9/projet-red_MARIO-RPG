@@ -1,0 +1,20 @@
+
+mario-rpg
+mario-rpg.exe
+*.exe
+
+save.json
+scores.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Divers
+*.log
