@@ -19,6 +19,7 @@ type Monster struct {
 
 // ==================== INITIALISATIONS ====================
 
+// InitGoomba crée un Goomba d'entraînement (facile)
 func InitGoomba() Monster {
 	return Monster{
 		Name:       "Goomba d'entraînement",
@@ -31,9 +32,10 @@ func InitGoomba() Monster {
 	}
 }
 
-func InitKoopa() Monster {
+// InitThwomp crée un Thwomp (moyen)
+func InitThwomp() Monster {
 	return Monster{
-		Name:       "Koopa Tropique",
+		Name:       "Thwomp",
 		MaxHP:      60,
 		CurrentHP:  60,
 		Attack:     8,
@@ -43,6 +45,7 @@ func InitKoopa() Monster {
 	}
 }
 
+// InitBowser crée Bowser (boss final)
 func InitBowser() Monster {
 	return Monster{
 		Name:       "Bowser",
@@ -122,7 +125,7 @@ func (m *Monster) DisplayHP() {
 		Red, m.CurrentHP, m.MaxHP, Reset)
 }
 
-// Version simple (ancien style) pour compatibilité
+// DisplayHPSimple affiche la vie du monstre (version texte simple)
 func (m *Monster) DisplayHPSimple() {
 	fmt.Printf("%s : %s%d / %d PV%s\n",
 		m.Name, hpColorMonster(m), m.CurrentHP, m.MaxHP, Reset)
@@ -130,6 +133,7 @@ func (m *Monster) DisplayHPSimple() {
 
 // ==================== COULEUR SELON HP ====================
 
+// hpColorMonster retourne la couleur selon le ratio de vie
 func hpColorMonster(m *Monster) string {
 	if m.MaxHP <= 0 {
 		return Red
@@ -146,7 +150,7 @@ func hpColorMonster(m *Monster) string {
 
 // ==================== ANIMATIONS SPÉCIALES MONSTRE ====================
 
-// Animation d'apparition du monstre
+// AppearAnimation anime l'apparition du monstre
 func (m *Monster) AppearAnimation() {
 	fmt.Println()
 	SlowPrint(Yellow+"⚡ Un "+m.Name+" apparaît !", 30*time.Millisecond)
@@ -166,20 +170,26 @@ func (m *Monster) AppearAnimation() {
 	time.Sleep(400 * time.Millisecond)
 }
 
-// Animation de mort du monstre
+// DeathAnimation anime la mort du monstre
 func (m *Monster) DeathAnimation() {
 	SlowPrint(Red+"Le "+m.Name+" s'effondre...", 25*time.Millisecond)
 	time.Sleep(200 * time.Millisecond)
 
-	// Effet de disparition
+	// Effet de disparition progressif
 	art := monsterArt(m.Name)
-	lines := len(art)
+	if art == "" {
+		time.Sleep(300 * time.Millisecond)
+		fmt.Println()
+		SlowPrint(Green+"✨ Le monstre est vaincu !", 20*time.Millisecond)
+		return
+	}
 
-	for i := lines; i > 0; i-- {
+	lines := splitLines(art)
+
+	for i := len(lines); i > 0; i-- {
 		Clear()
 		fmt.Println()
-		// Afficher seulement les premières lignes
-		displayPartialArt(art, i)
+		displayPartialArt(lines, i)
 		time.Sleep(100 * time.Millisecond)
 	}
 
@@ -190,20 +200,21 @@ func (m *Monster) DeathAnimation() {
 
 // ==================== ART DU MONSTRE ====================
 
+// monsterArt retourne l'ASCII art du monstre
 func monsterArt(name string) string {
 	switch name {
 	case "Goomba d'entraînement":
 		return GoombaArt
-	case "Koopa Tropique":
-		return GoombaArt
+	case "Thwomp":
+		return ThwompArt
 	case "Bowser":
 		return BowserArt
 	}
 	return ""
 }
 
-func displayPartialArt(art string, keepLines int) {
-	lines := splitLines(art)
+// displayPartialArt affiche seulement les premières lignes d'un art
+func displayPartialArt(lines []string, keepLines int) {
 	max := keepLines
 	if max > len(lines) {
 		max = len(lines)
@@ -213,6 +224,7 @@ func displayPartialArt(art string, keepLines int) {
 	}
 }
 
+// splitLines découpe une string multi-lignes en slice
 func splitLines(s string) []string {
 	var lines []string
 	current := ""
@@ -232,7 +244,7 @@ func splitLines(s string) []string {
 
 // ==================== ATTAQUE SPÉCIALE DU MONSTRE ====================
 
-// AttackPlayer : variante avec animation d'attaque personnalisée
+// AttackPlayer attaque le joueur avec une animation personnalisée
 func (m *Monster) AttackPlayer(player *Character, damage int) {
 	// Charge
 	fmt.Printf("  %s%s%s charge", Bold, m.Name, Reset)
@@ -281,4 +293,45 @@ func (m *Monster) StatusEmoji() string {
 	default:
 		return "☠"
 	}
+}
+
+// ==================== AFFICHAGE COMPLET DU MONSTRE ====================
+
+// DisplayFull affiche le monstre en entier (art + infos)
+func (m *Monster) DisplayFull() {
+	// ASCII art
+	art := monsterArt(m.Name)
+	if art != "" {
+		fmt.Println(art)
+	}
+
+	// Nom encadré
+	fmt.Println(Red + "╔════════════════════════════════════════╗" + Reset)
+	fmt.Printf(Red+"║"+Reset+"  %s%-36s%s"+Red+"║\n"+Reset,
+		Bold, m.Name, Reset)
+	fmt.Println(Red + "╚════════════════════════════════════════╝" + Reset)
+
+	// Barre de vie
+	fmt.Printf("  %sPV%s : %s  %s%d/%d%s  %s\n",
+		Green, Reset,
+		HPBar(m.CurrentHP, m.MaxHP, 20),
+		hpColorMonster(m), m.CurrentHP, m.MaxHP, Reset,
+		m.StatusEmoji())
+
+	// Stats
+	fmt.Printf("  %sAttaque%s : %d   %sInitiative%s : %d\n\n",
+		Red, Reset, m.Attack,
+		Yellow, Reset, m.Initiative)
+}
+
+// ==================== RÉCOMPENSES ====================
+
+// GiveRewards donne les récompenses du monstre au joueur
+func (m *Monster) GiveRewards(player *Character) {
+	fmt.Println()
+	SlowPrint(Yellow+fmt.Sprintf("💰 +%d pièces d'or", m.GoldReward), 20*time.Millisecond)
+	SlowPrint(Purple+fmt.Sprintf("⭐ +%d points d'expérience", m.ExpReward), 20*time.Millisecond)
+
+	player.Gold += m.GoldReward
+	player.GainExp(m.ExpReward)
 }

@@ -8,7 +8,7 @@ import (
 
 // ==================== UTILITAIRES VISUELS ====================
 
-// Barre de vie colorée : [████████░░░░░░░░]
+// HPBar affiche une barre de vie colorée : [████████░░░░░░░░]
 func HPBar(current, max int, width int) string {
 	if max <= 0 {
 		return strings.Repeat("░", width)
@@ -38,7 +38,7 @@ func HPBar(current, max int, width int) string {
 	return "[" + bar + "]"
 }
 
-// Barre de mana
+// ManaBar affiche une barre de mana bleue
 func ManaBar(current, max int, width int) string {
 	if max <= 0 {
 		return strings.Repeat("░", width)
@@ -55,7 +55,7 @@ func ManaBar(current, max int, width int) string {
 	return "[" + bar + "]"
 }
 
-// Effet "flash rouge" quand on prend des dégâts
+// FlashDamage fait clignoter un message de dégâts
 func FlashDamage() {
 	for i := 0; i < 3; i++ {
 		fmt.Print("\r" + BgRed + "  💥 DÉGÂTS 💥  " + Reset)
@@ -66,7 +66,7 @@ func FlashDamage() {
 	fmt.Println()
 }
 
-// Attaque animée : "Mario >>>>>>  💥  Goomba"
+// AnimateAttack anime une attaque : "Mario »»»»» 💥 Goomba"
 func AnimateAttack(attacker, target string) {
 	fmt.Printf("\n%s%s%s ", Bold, attacker, Reset)
 	for i := 0; i < 5; i++ {
@@ -79,39 +79,23 @@ func AnimateAttack(attacker, target string) {
 	time.Sleep(300 * time.Millisecond)
 }
 
-// Texte qui s'écrit lettre par lettre
-func SlowPrint(text string, delay time.Duration) {
-	for _, ch := range text {
-		fmt.Print(string(ch))
-		time.Sleep(delay)
-	}
-	fmt.Println()
-}
-
-// Petite animation de chargement
-func LoadingDots() {
-	for i := 0; i < 3; i++ {
-		fmt.Print(".")
-		time.Sleep(300 * time.Millisecond)
-	}
-	fmt.Println()
-}
+// ⚠️ SlowPrint et LoadingDots sont définis dans ui.go — NE PAS les redéfinir ici
 
 // ==================== AFFICHAGE DU COMBAT ====================
 
-// Affiche le monstre avec son ASCII art
+// DisplayMonster affiche l'ASCII art du monstre
 func DisplayMonster(m *Monster) {
 	switch m.Name {
 	case "Goomba d'entraînement":
 		fmt.Println(Red + GoombaArt + Reset)
-	case "Koopa Tropique":
-		fmt.Println(Green + GoombaArt + Reset)
+	case "Thwomp":
+		fmt.Println(Blue + ThwompArt + Reset)
 	case "Bowser":
 		fmt.Println(Red + BowserArt + Reset)
 	}
 }
 
-// Affiche le tableau de combat complet
+// DisplayCombatUI affiche l'interface complète du combat
 func DisplayCombatUI(player *Character, monster *Monster, turn int) {
 	Clear()
 
@@ -142,9 +126,9 @@ func DisplayCombatUI(player *Character, monster *Monster, turn int) {
 	fmt.Println()
 
 	// Art du joueur
-	fmt.Println(MarioArt)
+	DisplayCharacterArt(player.Class)
 
-	// Zone du joueur
+	// Barres du joueur
 	playerHP := HPBar(player.CurrentHP, player.MaxHP, 20)
 	playerMana := ManaBar(player.Mana, player.ManaMax, 20)
 
@@ -165,13 +149,23 @@ func DisplayCombatUI(player *Character, monster *Monster, turn int) {
 
 // ==================== COMBAT PRINCIPAL ====================
 
+// TrainingFight lance un combat tour par tour
 func TrainingFight(player *Character, monster Monster) {
+	// 🎵 Démarrer la musique de combat (arrête la musique de fond)
+	PlayBattleMusic()
+
+	// À la fin du combat, on remet la musique de fond
+	defer func() {
+		StopBattleMusic()
+		PlayBackgroundMusic()
+	}()
+
 	Clear()
 
 	// Écran de rencontre
 	DisplayMonster(&monster)
 	SlowPrint(Yellow+"⚡ Un "+monster.Name+" apparaît !", 30*time.Millisecond)
-	fmt.Print(White + "Préparation au combat")
+	fmt.Print(White + "Préparation au combat" + Reset)
 	LoadingDots()
 	time.Sleep(500 * time.Millisecond)
 	Pause()
@@ -189,12 +183,14 @@ func TrainingFight(player *Character, monster Monster) {
 	}
 	time.Sleep(1 * time.Second)
 
+	// Boucle de combat
 	for player.CurrentHP > 0 && monster.CurrentHP > 0 {
 		// Affichage du tour
 		DisplayCombatUI(player, &monster, turn)
 		time.Sleep(400 * time.Millisecond)
 
 		if playerFirst {
+			// Le joueur commence
 			player.CharacterTurn(&monster)
 			if monster.CurrentHP <= 0 {
 				break
@@ -207,6 +203,7 @@ func TrainingFight(player *Character, monster Monster) {
 			time.Sleep(300 * time.Millisecond)
 			monster.Pattern(turn, player)
 		} else {
+			// Le monstre commence
 			monster.Pattern(turn, player)
 			if player.CurrentHP <= 0 {
 				break
@@ -224,18 +221,30 @@ func TrainingFight(player *Character, monster Monster) {
 		Pause()
 	}
 
-	// Écran de fin
+	// ==================== FIN DU COMBAT ====================
 	Clear()
+
 	if player.CurrentHP <= 0 {
+		// ☠ DÉFAITE — son identique pour TOUS les combats
 		fmt.Println(Red + GameOverArt + Reset)
 		time.Sleep(500 * time.Millisecond)
+
 		SlowPrint(Red+"Vous vous effondrez...", 40*time.Millisecond)
-		time.Sleep(500 * time.Millisecond)
+
+		// 🎵 Son de mort de Mario
+		PlayDeathSound()
+		time.Sleep(2 * time.Second)
+
 		player.IsDead()
 	} else {
+		// ★ VICTOIRE — son identique pour TOUS les combats
 		fmt.Println(Green + "╔══════════════════════════════════════╗" + Reset)
 		fmt.Println(Green + "║          ★ ★ ★ VICTOIRE ! ★ ★ ★       ║" + Reset)
 		fmt.Println(Green + "╚══════════════════════════════════════╝" + Reset)
+
+		// 🎵 Son de victoire
+		PlayVictorySound()
+
 		time.Sleep(500 * time.Millisecond)
 		fmt.Println()
 		SlowPrint(Yellow+fmt.Sprintf("Vous gagnez %d EXP et %d pièces !",
@@ -248,6 +257,7 @@ func TrainingFight(player *Character, monster Monster) {
 
 // ==================== TOUR DU JOUEUR ====================
 
+// CharacterTurn gère le tour du joueur (menu d'action)
 func (c *Character) CharacterTurn(monster *Monster) {
 	for {
 		fmt.Printf("  %s1.%s %s Attaquer (Saut)%s\n", Cyan, Reset, Bold, Reset)
@@ -259,21 +269,30 @@ func (c *Character) CharacterTurn(monster *Monster) {
 		switch choice {
 		case 1:
 			c.PlayerAttack(monster, "Saut", 5)
-			return
+			return // ✅ tour consommé
+
 		case 2:
-			c.AccessInventory()
-			return
+			// ✅ Utilise la version combat qui dit si un item a été utilisé
+			if c.AccessInventoryInCombat() {
+				return // ✅ tour consommé si un item a été utilisé
+			}
+			// Sinon on reste dans le menu du tour
+			Clear()
+			DisplayCombatUI(c, monster, 0)
+			continue
+
 		case 3:
 			if c.UseSpellInCombat(monster) {
-				return
+				return // ✅ tour consommé si un sort a été lancé
 			}
+
 		default:
 			fmt.Println(Red + "Choix invalide." + Reset)
 		}
 	}
 }
 
-// Attaque du joueur avec animation
+// PlayerAttack exécute une attaque physique du joueur
 func (c *Character) PlayerAttack(monster *Monster, attackName string, damage int) {
 	Clear()
 	fmt.Println(Cyan + "═══════════════════════════════════════════════════════════" + Reset)
@@ -301,12 +320,14 @@ func (c *Character) PlayerAttack(monster *Monster, attackName string, damage int
 
 // ==================== SORTS EN COMBAT ====================
 
+// UseSpellInCombat affiche le menu des sorts et lance le sort choisi
 func (c *Character) UseSpellInCombat(monster *Monster) bool {
 	Clear()
 	fmt.Println(Cyan + "╔════════════════════════════════════════╗" + Reset)
 	fmt.Println(Cyan + "║              📖 SORTS                  ║" + Reset)
 	fmt.Println(Cyan + "╚════════════════════════════════════════╝" + Reset)
-	fmt.Printf("  Mana : %s %s%d/%d%s\n\n", ManaBar(c.Mana, c.ManaMax, 15), Blue, c.Mana, c.ManaMax, Reset)
+	fmt.Printf("  Mana : %s %s%d/%d%s\n\n",
+		ManaBar(c.Mana, c.ManaMax, 15), Blue, c.Mana, c.ManaMax, Reset)
 
 	for i, s := range c.Skills {
 		cost := spellManaCost(s)
@@ -315,8 +336,15 @@ func (c *Character) UseSpellInCombat(monster *Monster) bool {
 		if c.Mana < cost {
 			color = Red
 		}
-		fmt.Printf("  %s%d.%s %-15s %s(%d dégâts, %d mana)%s\n",
-			Cyan, i+1, Reset, s, color, dmg, cost, Reset)
+
+		// Affichage différent pour le sort de soin
+		if s == "Étoile" {
+			fmt.Printf("  %s%d.%s %-15s %s(SOIN +40 PV, %d mana)%s\n",
+				Cyan, i+1, Reset, s, color, cost, Reset)
+		} else {
+			fmt.Printf("  %s%d.%s %-15s %s(%d dégâts, %d mana)%s\n",
+				Cyan, i+1, Reset, s, color, dmg, cost, Reset)
+		}
 	}
 	fmt.Printf("  %s0.%s Retour\n", Yellow, Reset)
 
@@ -340,6 +368,12 @@ func (c *Character) UseSpellInCombat(monster *Monster) bool {
 	}
 
 	c.Mana -= cost
+
+	// 🎁 Bonus : sort de soin Étoile
+	if spell == "Étoile" {
+		return c.CastHealSpell()
+	}
+
 	damage := spellDamage(spell)
 
 	// Animation du sort
@@ -386,22 +420,73 @@ func (c *Character) UseSpellInCombat(monster *Monster) bool {
 	return true
 }
 
+// ==================== SORT DE SOIN ÉTOILE ====================
+
+// CastHealSpell lance le sort de soin Étoile (+40 PV)
+func (c *Character) CastHealSpell() bool {
+	Clear()
+	fmt.Println(Cyan + "═══════════════════════════════════════════════════════════" + Reset)
+	fmt.Println()
+
+	fmt.Printf("%s%s%s invoque ", Bold, c.Name, Reset)
+	time.Sleep(200 * time.Millisecond)
+	fmt.Print(Yellow + "✨ ÉTOILE ✨" + Reset)
+	time.Sleep(400 * time.Millisecond)
+	fmt.Println()
+
+	// Animation d'étoiles
+	for i := 0; i < 5; i++ {
+		fmt.Print(Yellow + "★ " + Reset)
+		time.Sleep(100 * time.Millisecond)
+	}
+	fmt.Println()
+
+	// Soin
+	before := c.CurrentHP
+	c.CurrentHP += 40
+	if c.CurrentHP > c.MaxHP {
+		c.CurrentHP = c.MaxHP
+	}
+	healed := c.CurrentHP - before
+
+	time.Sleep(300 * time.Millisecond)
+	SlowPrint(Green+fmt.Sprintf("Vous récupérez %d PV !", healed), 15*time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
+
+	fmt.Println()
+	fmt.Printf("  %s%s%s  %s  %s%d/%d%s\n",
+		Bold, c.Name, Reset,
+		HPBar(c.CurrentHP, c.MaxHP, 25),
+		Green, c.CurrentHP, c.MaxHP, Reset)
+	fmt.Printf("  %sMana restant : %s %s%d/%d%s\n",
+		Blue, ManaBar(c.Mana, c.ManaMax, 15), Blue, c.Mana, c.ManaMax, Reset)
+	return true
+}
+
+// ==================== COÛTS ET DÉGÂTS DES SORTS ====================
+
+// spellManaCost retourne le coût en mana d'un sort
 func spellManaCost(spell string) int {
 	switch spell {
 	case "Saut":
 		return 5
 	case "Boule de Feu":
 		return 15
+	case "Étoile":
+		return 20
 	}
 	return 0
 }
 
+// spellDamage retourne les dégâts d'un sort (0 pour les soins)
 func spellDamage(spell string) int {
 	switch spell {
 	case "Saut":
 		return 8
 	case "Boule de Feu":
 		return 18
+	case "Étoile":
+		return 0 // soin, pas de dégâts
 	}
 	return 0
 }

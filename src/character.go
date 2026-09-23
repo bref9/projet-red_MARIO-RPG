@@ -31,41 +31,100 @@ type Character struct {
 	Initiative        int
 	Exp               int
 	ExpMax            int
+
+	// Champs bonus
+	HasFreePotion      bool
+	InventoryPurchases int
 }
 
 // ==================== INITIALISATION ====================
 
 func InitCharacter(name, class string, maxHP, manaMax int) *Character {
 	return &Character{
-		Name:              name,
-		Class:             class,
-		Level:             1,
-		MaxHP:             maxHP,
-		CurrentHP:         maxHP / 2,
-		Mana:              manaMax,
-		ManaMax:           manaMax,
-		Gold:              100,
-		Inventory:         []string{},
-		MaxInventory:      10,
-		InventoryUpgrades: 0,
-		Skills:            []string{"Saut"},
-		Equipment:         Equipment{},
-		Initiative:        10,
-		Exp:               0,
-		ExpMax:            100,
+		Name:               name,
+		Class:              class,
+		Level:              1,
+		MaxHP:              maxHP,
+		CurrentHP:          maxHP / 2,
+		Mana:               manaMax,
+		ManaMax:            manaMax,
+		Gold:               100,
+		Inventory:          []string{},
+		MaxInventory:       10,
+		InventoryUpgrades:  0,
+		Skills:             []string{"Saut"},
+		Equipment:          Equipment{},
+		Initiative:         10,
+		Exp:                0,
+		ExpMax:             100,
+		HasFreePotion:      false,
+		InventoryPurchases: 0,
 	}
 }
 
 // ==================== CRÉATION ====================
 
+// CharacterCreation gère tout le flux de création de personnage
 func CharacterCreation() *Character {
 	Clear()
 	fmt.Println(Yellow + MarioLogo + Reset)
 
-	name := askName()
-	class, maxHP, manaMax := askClass()
+	// Étape 1 : Choix du personnage
+	choice := askCharacterChoice()
 
+	var name, class string
+	var maxHP, manaMax int
+
+	// Étape 2a : Personnages prédéfinis (Mario, Luigi, Peach)
+	if choice >= 1 && choice <= 3 {
+		switch choice {
+		case 1:
+			name, class, maxHP, manaMax = "Mario", "Mario", 100, 50
+		case 2:
+			name, class, maxHP, manaMax = "Luigi", "Luigi", 80, 80
+		case 3:
+			name, class, maxHP, manaMax = "Princesse Peach", "Princesse Peach", 90, 70
+		}
+	} else {
+		// Étape 2b : Personnage personnalisé → demander nom puis classe
+		Clear()
+		PrintTitle("📝 CRÉATION DE PERSONNAGE")
+		fmt.Println()
+		fmt.Println(Cyan + "Crée ton propre héros ! Choisis ton nom." + Reset)
+		fmt.Println()
+		name = askName()
+
+		Clear()
+		PrintTitle("🎭 CHOISIS TA CLASSE")
+		fmt.Println()
+		fmt.Println("  1. " + Blue + "Humain" + Reset + "   (100 PV, 50 Mana) - Équilibré")
+		fmt.Println("  2. " + Blue + "Toad" + Reset + "     (80 PV, 80 Mana)  - Mage agile")
+		fmt.Println("  3. " + Blue + "Koopa" + Reset + "    (90 PV, 70 Mana)  - Soutien")
+		fmt.Println()
+
+		for {
+			classChoice := AskInt("Choix : ")
+			switch classChoice {
+			case 1:
+				class, maxHP, manaMax = "Humain", 100, 50
+			case 2:
+				class, maxHP, manaMax = "Toad", 80, 80
+			case 3:
+				class, maxHP, manaMax = "Koopa", 90, 70
+			default:
+				fmt.Println(Red + "Choix invalide." + Reset)
+				continue
+			}
+			break
+		}
+	}
+
+	// Étape 3 : Créer le personnage
 	player := InitCharacter(name, class, maxHP, manaMax)
+
+	// Étape 4 : Afficher l'ASCII art
+	Clear()
+	DisplayCharacterArt(class)
 
 	fmt.Println(Green + "\n★ Personnage créé avec succès ! ★" + Reset)
 	fmt.Printf("  Nom    : %s\n", player.Name)
@@ -78,16 +137,38 @@ func CharacterCreation() *Character {
 	return player
 }
 
+// askCharacterChoice affiche le menu principal de choix de personnage
+func askCharacterChoice() int {
+	Clear()
+	PrintTitle("🎮 CHOISIS TON PERSONNAGE")
+	fmt.Println()
+	fmt.Println("  1. " + Red + "Mario" + Reset + "           (100 PV, 50 Mana) - Équilibré")
+	fmt.Println("  2. " + Green + "Luigi" + Reset + "           (80 PV, 80 Mana)  - Mage agile")
+	fmt.Println("  3. " + Purple + "Princesse Peach" + Reset + " (90 PV, 70 Mana)  - Soutien")
+	fmt.Println()
+	fmt.Println("  4. " + Cyan + "Créer un nouveau personnage" + Reset)
+	fmt.Println()
+
+	for {
+		choice := AskInt("Choix : ")
+		if choice >= 1 && choice <= 4 {
+			return choice
+		}
+		fmt.Println(Red + "Choix invalide." + Reset)
+	}
+}
+
+// askName demande un nom (uniquement pour la création personnalisée)
 func askName() string {
 	for {
-		fmt.Print(Cyan + "Entrez votre nom (lettres uniquement) : " + Reset)
+		fmt.Print(Green + "→ " + Reset)
 		var name string
 		fmt.Scanln(&name)
 
 		if isValidName(name) {
 			return formatName(name)
 		}
-		fmt.Println(Red + "Nom invalide. Réessayez." + Reset)
+		fmt.Println(Red + "❌ Nom invalide. Utilise uniquement des lettres." + Reset)
 	}
 }
 
@@ -110,30 +191,46 @@ func formatName(name string) string {
 	return string(runes)
 }
 
-func askClass() (string, int, int) {
-	fmt.Println(Cyan + "\n=== Choisissez votre héros ===" + Reset)
-	fmt.Println("  1. " + Red + "Mario" + Reset + "   (100 PV, 50 Mana) - Équilibré")
-	fmt.Println("  2. " + Green + "Luigi" + Reset + "   (80 PV, 80 Mana)  - Mage agile")
-	fmt.Println("  3. " + Yellow + "Bowser" + Reset + "  (120 PV, 30 Mana) - Tank puissant")
+// DisplayCharacterArt affiche l'ASCII art du personnage selon sa classe
+func DisplayCharacterArt(class string) {
+	switch class {
+	case "Mario":
+		fmt.Println(Red + MarioArt + Reset)
+		fmt.Println(Bold + Red + "                    MARIO" + Reset)
 
-	for {
-		choice := AskInt("Choix : ")
-		switch choice {
-		case 1:
-			return "Mario", 100, 50
-		case 2:
-			return "Luigi", 80, 80
-		case 3:
-			return "Bowser", 120, 30
-		default:
-			fmt.Println(Red + "Choix invalide." + Reset)
-		}
+	case "Humain":
+		fmt.Println(Red + MarioArt + Reset)
+		fmt.Println(Bold + Red + "                    HUMAIN" + Reset)
+
+	case "Luigi":
+		fmt.Println(Green + LuigiArt + Reset)
+		fmt.Println(Bold + Green + "                    LUIGI" + Reset)
+
+	case "Toad":
+		fmt.Println(White + ToadArt + Reset)
+		fmt.Println(Bold + White + "                    TOAD" + Reset)
+
+	case "Princesse Peach":
+		fmt.Println(Purple + PeachArt + Reset)
+		fmt.Println(Bold + Purple + "                    PRINCESSE PEACH" + Reset)
+
+	case "Koopa":
+		fmt.Println(Green + KoopaArt + Reset)
+		fmt.Println(Bold + Green + "                    KOOPA" + Reset)
+
+	default:
+		fmt.Println(White + MarioArt + Reset)
+		fmt.Println(Bold + White + "                    " + strings.ToUpper(class) + Reset)
 	}
 }
 
 // ==================== AFFICHAGE ====================
 
 func (c *Character) DisplayInfo() {
+	// 🎨 Afficher l'ASCII art du personnage en premier
+	DisplayCharacterArt(c.Class)
+	fmt.Println()
+
 	fmt.Println(Cyan + "╔══════════════════════════════════════════╗" + Reset)
 	fmt.Printf(Cyan+"║"+Reset+"  %s%-38s%s"+Cyan+"║\n"+Reset,
 		Bold+Yellow, c.Name, Reset)
@@ -149,6 +246,8 @@ func (c *Character) DisplayInfo() {
 	fmt.Printf(Cyan+"║"+Reset+"  Expérience : %-27s"+Cyan+"║\n"+Reset,
 		fmt.Sprintf("%d / %d", c.Exp, c.ExpMax))
 	fmt.Printf(Cyan+"║"+Reset+"  Initiative : %-27d"+Cyan+"║\n"+Reset, c.Initiative)
+	fmt.Printf(Cyan+"║"+Reset+"  Inventaire : %-27s"+Cyan+"║\n"+Reset,
+		fmt.Sprintf("%d / %d", len(c.Inventory), c.MaxInventory))
 	fmt.Println(Cyan + "╠══════════════════════════════════════════╣" + Reset)
 	fmt.Printf(Cyan+"║"+Reset+"  Équipement :%-28s"+Cyan+"║\n"+Reset, "")
 	fmt.Printf(Cyan+"║"+Reset+"    Tête  : %-31s"+Cyan+"║\n"+Reset, emptyOr(c.Equipment.Head, "—"))
@@ -205,10 +304,33 @@ func (c *Character) GainExp(amount int) {
 		c.Mana = c.ManaMax
 		c.Initiative += 1
 
+		// 🎁 Bonus : agrandissement automatique de l'inventaire
+		c.MaxInventory += 2
+
 		fmt.Println(Purple + "\n★ ★ ★ NIVEAU SUPÉRIEUR ! ★ ★ ★" + Reset)
 		fmt.Printf(Yellow+"Vous êtes maintenant niveau %d !\n"+Reset, c.Level)
 		fmt.Printf("  +10 PV max (%d)\n", c.MaxHP)
 		fmt.Printf("  +10 Mana max (%d)\n", c.ManaMax)
 		fmt.Printf("  +1 Initiative (%d)\n", c.Initiative)
+		fmt.Printf(Green+"  +2 Slots d'inventaire (%d)\n"+Reset, c.MaxInventory)
+
+		// 🎁 Bonus : sort de guérison au niveau 3
+		if c.Level == 3 && !hasSpell(c.Skills, "Étoile") {
+			c.Skills = append(c.Skills, "Étoile")
+			fmt.Println()
+			fmt.Println(Yellow + "✨ ✨ ✨ SORT DÉBLOQUÉ ! ✨ ✨ ✨" + Reset)
+			fmt.Println(Green + "Vous apprenez : Étoile (soin)" + Reset)
+			fmt.Println(Cyan + "  Coût : 20 mana" + Reset)
+			fmt.Println(Cyan + "  Effet : Restaure 40 PV" + Reset)
+		}
 	}
+}
+
+func hasSpell(skills []string, spell string) bool {
+	for _, s := range skills {
+		if s == spell {
+			return true
+		}
+	}
+	return false
 }
